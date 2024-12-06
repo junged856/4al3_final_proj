@@ -5,34 +5,23 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 class svm_():
-    def __init__(self,learning_rate,epoch,C_value,X,Y):
-
+    def __init__(self,learning_rate,epoch,C_value,X,Y, batch_size=32):
+        self.rff = RandomFourierFeatures(gamma=1.0, D=100)
         #initialize the variables
         self.input = X
         self.target = Y
         self.learning_rate = learning_rate
-        self.epoch = epoch
+        self.epochs = epoch
         self.C = C_value
+        self.bias = 0
+        self.batch_size = batch_size
 
         self.threshold = 1e-4
      
         self.weights = np.zeros(X.shape[1])
-    
-    # the function return gradient for 1 instance
-    def compute_gradient(self,X,Y):
-        X_ = np.array([X]).flatten()
-
-        hinge_distance = 1 - (Y* np.dot(X_,self.weights))
-        total_distance = np.zeros(len(self.weights))
-        if hinge_distance[0] > 0:
-            total_distance += self.weights - (self.C * Y * X_)
-        else:
-            total_distance += self.weights
-
-        return total_distance
 
     def compute_loss(self,X,Y):
-        # calculate hinge loss
+        # hinge loss
         loss=0
 
         for i in range(len(X)):
@@ -42,60 +31,111 @@ class svm_():
         total_loss = (self.C * loss) + regularization_term 
         return total_loss.item()
     
-    def mini_batch_gradient_descent(self,X,Y,batch_size):
-        X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.2, random_state=42)
+    def _compute_loss(self, X, y):
+        """
+        Compute the hinge loss + regularization term.
+        """
+        hinge_loss = np.maximum(0, 1 - y * (np.dot(X, self.weights) + self.bias))
+        return 0.5 * np.dot(self.weights, self.weights) + self.C * np.sum(hinge_loss)
     
+    def train(self, X, y):
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        self.rff.fit(X_train)
+
+        X_train_transformed = self.rff.transform(X_train)
+        X_val_transformed = self.rff.transform(X_val)
+
+        # Initialize weights
+        n_samples, n_features = X_train_transformed.shape
+        self.weights = np.zeros(n_features)
+
+        # Training loop
         train_losses = []
-        validation_losses = []
-        early_stop = 0
-        stopped = False
+        val_losses = []
+        # stopped = False
 
-        for epoch in range(self.epoch):
-            features, output = shuffle(X_train, Y_train, random_state=42)
-            features_val, output_val = shuffle(X_val, Y_val, random_state=42)
+        for epoch in range(self.epochs):
+            X_train_transformed, y_train = shuffle(X_train_transformed, y_train, random_state=42)
 
-            # mini-batches
-            for i in range(0, len(features), batch_size):
-                batch_X = features[i:i + batch_size]
-                batch_Y = output[i:i + batch_size]
+            # mini-batch GD
+            for i in range(0, len(X_train_transformed), self.batch_size):
+                batch_X = X_train_transformed[i:i + self.batch_size]
+                batch_y = y_train[i:i + self.batch_size]
 
-                gradients = np.zeros_like(self.weights)
-                for j, feature in enumerate(batch_X):
-                    gradients += self.compute_gradient(feature, batch_Y[j])
+                # Compute margin
+                margin = batch_y * (np.dot(batch_X, self.weights) + self.bias)
 
-                gradients /= batch_size
+                mask = margin < 1
 
-                self.weights -= self.learning_rate * gradients
+                # samples incorrectly classified
+                violating_X = batch_X[mask]
+                violating_y = batch_y[mask]
 
-            train_loss = np.mean(self.compute_loss(features, output))
-            validation_loss = np.mean(self.compute_loss(features_val, output_val))
+                if len(violating_X) > 0:
+                    grad_w = self.weights - self.C * np.dot(violating_X.T, violating_y)
+                    grad_b = -self.C * np.sum(violating_y)
+                else:
+                    grad_w = self.weights
+                    grad_b = 0
 
-            if epoch % (self.epoch // 10) == 0:
-                train_losses.append(train_loss)
-                validation_losses.append(validation_loss)
-                print(f"Epoch: {epoch}, Training Loss: {train_loss:.4f}, Validation Loss: {validation_loss:.4f}")
+                self.weights -= self.learning_rate * grad_w
+                self.bias -= self.learning_rate * grad_b
 
 
-            if (len(validation_losses) > 1 and abs(validation_loss - validation_losses[-2]) < self.threshold and stopped == False):
-                print(f"Stopping early at epoch: {epoch} due to model converging below threshold with loss: {validation_loss}")
-                early_stop = epoch   
-                stopped = True
+            train_loss = self._compute_loss(X_train_transformed, y_train)
+            val_loss = self._compute_loss(X_val_transformed, y_val)
+            train_losses.append(train_loss)
+            val_losses.append(val_loss)
 
-        print("Training ended...")
-        # print("weights are: {}".format(self.weights))
+            # if (len(val_losses) > 1 and abs(val_loss - val_losses[-2]) < self.threshold and stopped == False):
+            #     print(f"Stopping early at epoch: {epoch} due to model converging below threshold with loss: {val_loss}")
+            #     stopped = True
 
-        return train_losses, validation_losses, early_stop
+            if epoch % (self.epochs // 10) == 0 or epoch == self.epochs - 1:
+                print(f"Epoch {epoch}: Train Loss = {train_loss:.4f}, Val Loss = {val_loss:.4f}")
 
-    def predict(self,X_test,Y_test):
-            predicted_values = [np.sign(np.dot(X_test[i], self.weights)) for i in range(X_test.shape[0])]
+        return train_losses, val_losses
+
+    def evaluate(self, X, Y):
+        """
+        Predict labels for input data.
+        Parameters:
+        - X: Input data of shape (n_samples, n_features).
+        Returns:
+        - Predicted labels of shape (n_samples,).
+        """
+        X_transformed = self.rff.transform(X)
+        y_pred = np.sign(np.dot(X_transformed, self.weights) + self.bias)
+        accuracy= accuracy_score(Y, y_pred)
+        print("Accuracy on test dataset: {}".format(accuracy))
+        
+    # def predict(self,X_test,Y_test):
+    #         predicted_values = [np.sign(np.dot(X_test[i], self.weights)) for i in range(X_test.shape[0])]
             
-            accuracy= accuracy_score(Y_test, predicted_values)
-            print("Accuracy on test dataset: {}".format(accuracy))
+    #         accuracy= accuracy_score(Y_test, predicted_values)
+    #         print("Accuracy on test dataset: {}".format(accuracy))
 
-            precision = precision_score(Y_test, predicted_values, average='macro', zero_division=1)
-            print("Precision on test dataset: {}".format(precision))
+    #         precision = precision_score(Y_test, predicted_values, average='macro', zero_division=1)
+    #         print("Precision on test dataset: {}".format(precision))
 
-            recall = recall_score(Y_test, predicted_values, average='macro', zero_division=1)
-            print("Recall on test dataset: {}".format(recall))
+    #         recall = recall_score(Y_test, predicted_values, average='macro', zero_division=1)
+    #         print("Recall on test dataset: {}".format(recall))
 
-            return accuracy, precision, recall
+    #         return accuracy, precision, recall
+
+class RandomFourierFeatures:
+    def __init__(self, gamma=1.0, D=100):
+        self.gamma = gamma
+        self.D = D
+        self.W = None
+        self.b = 0.0
+
+    def fit(self, X):
+        n_features = X.shape[1]
+        self.W = np.sqrt(2 * self.gamma) * np.random.randn(n_features, self.D)
+        self.b = np.random.uniform(0, 2 * np.pi, self.D)
+
+    def transform(self, X):
+        projection = np.dot(X, self.W) + self.b
+        return np.sqrt(2 / self.D) * np.cos(projection)
