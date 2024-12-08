@@ -1,4 +1,4 @@
-from sklearn.metrics import accuracy_score, recall_score, precision_score
+from sklearn.metrics import accuracy_score, log_loss
 from sklearn.utils import shuffle, resample
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -12,12 +12,14 @@ class random_forest():
         
     # create forest
     def fit(self, X, Y):
+        print("fitting model...")
+        
         sample_size = len(X) 
         self.forest = [None] * self.forest_size
         
-        for t_i in range(self.forest_size):  
+        for t_i in range(self.forest_size):
             # bootstrap sample
-            X_sample, Y_sample = self.sampling_strat(X, Y, sample_size) 
+            X_sample, Y_sample = self.sampling_strat(X, Y, sample_size)
                 
             clf = DecisionTreeClassifier()
             clf.fit(X_sample, Y_sample)
@@ -31,6 +33,7 @@ class random_forest():
 
     def predict(self, X):
         y_pred = np.array([])
+        class_probabilities = []
         
         for i in range(len(X)):
             pos_predictions = 0
@@ -52,6 +55,7 @@ class random_forest():
             else:
                 forest_pred = -1
             y_pred = np.append(arr=y_pred, values=forest_pred)
+            class_probabilities.append([pos_predictions / 100, neg_predictions / 100])
             
             if i % 1000 == 0:
                 print("aggregated predictions for ", i, " samples.")
@@ -59,8 +63,16 @@ class random_forest():
         # turn to col vector
         y_pred = np.c_[y_pred]
         
-        return y_pred
+        return y_pred, class_probabilities
     
-    def evaluate(self, Y, Y_pred):
+    def evaluate(self, Y, Y_pred, y_pred_prob):
         accuracy = accuracy_score(Y, Y_pred)
-        return accuracy
+        
+        class_map = {
+            1: 0,
+            -1: 1
+        }
+        y_true = [class_map[x] for x in Y]
+        entropy_loss = log_loss(y_true, y_pred_prob)
+        
+        return accuracy, entropy_loss
