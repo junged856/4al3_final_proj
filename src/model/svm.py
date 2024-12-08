@@ -82,7 +82,6 @@ class svm_():
                 self.weights -= self.learning_rate * grad_w
                 self.bias -= self.learning_rate * grad_b
 
-
             train_loss = self._compute_loss(X_train_transformed, y_train)
             val_loss = self._compute_loss(X_val_transformed, y_val)
             train_losses.append(train_loss)
