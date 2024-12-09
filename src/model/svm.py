@@ -1,8 +1,7 @@
-from sklearn.metrics import accuracy_score, recall_score, precision_score
+from sklearn.metrics import accuracy_score
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 import numpy as np
-from sklearn.preprocessing import StandardScaler
 
 class svm_():
     def __init__(self,learning_rate,epoch,C_value,X,Y, batch_size=32):
@@ -87,41 +86,16 @@ class svm_():
             train_losses.append(train_loss)
             val_losses.append(val_loss)
 
-            # if (len(val_losses) > 1 and abs(val_loss - val_losses[-2]) < self.threshold and stopped == False):
-            #     print(f"Stopping early at epoch: {epoch} due to model converging below threshold with loss: {val_loss}")
-            #     stopped = True
-
             if epoch % (self.epochs // 10) == 0 or epoch == self.epochs - 1:
                 print(f"Epoch {epoch}: Train Loss = {train_loss:.4f}, Val Loss = {val_loss:.4f}")
 
         return train_losses, val_losses
 
     def evaluate(self, X, Y):
-        """
-        Predict labels for input data.
-        Parameters:
-        - X: Input data of shape (n_samples, n_features).
-        Returns:
-        - Predicted labels of shape (n_samples,).
-        """
         X_transformed = self.rff.transform(X)
         y_pred = np.sign(np.dot(X_transformed, self.weights) + self.bias)
         accuracy= accuracy_score(Y, y_pred)
         print("Accuracy on test dataset: {}".format(accuracy))
-        
-    # def predict(self,X_test,Y_test):
-    #         predicted_values = [np.sign(np.dot(X_test[i], self.weights)) for i in range(X_test.shape[0])]
-            
-    #         accuracy= accuracy_score(Y_test, predicted_values)
-    #         print("Accuracy on test dataset: {}".format(accuracy))
-
-    #         precision = precision_score(Y_test, predicted_values, average='macro', zero_division=1)
-    #         print("Precision on test dataset: {}".format(precision))
-
-    #         recall = recall_score(Y_test, predicted_values, average='macro', zero_division=1)
-    #         print("Recall on test dataset: {}".format(recall))
-
-    #         return accuracy, precision, recall
 
 class RandomFourierFeatures:
     def __init__(self, gamma=1.0, D=100):

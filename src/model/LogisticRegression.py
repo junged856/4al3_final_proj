@@ -1,6 +1,4 @@
-import pandas as pd
 import numpy as np
-import sklearn
 
 class LogisticRegression_():
     def __init__(self, c, learning_rate, epoch, X, Y):
@@ -23,7 +21,7 @@ class LogisticRegression_():
         return cross_entropy + l2_reg
 
 
-    def train(self,x_test,y_test):
+    def train(self,X_train,y_train):
         m = len(self.input)
 
         self.weights = np.zeros(self.input.shape[1])
@@ -41,7 +39,7 @@ class LogisticRegression_():
             self.train_loss.append(t_loss)
 
             #compute validation loss
-            v_loss = self.compute_loss(x_test, y_test, self.weights, self.sigmoid(np.dot(x_test, self.weights) + self.bias))
+            v_loss = self.compute_loss(X_train, y_train, self.weights, self.sigmoid(np.dot(X_train, self.weights) + self.bias))
             self.validation_loss.append(v_loss)
 
             #compute validation loss
@@ -56,7 +54,7 @@ class LogisticRegression_():
             self.bias = self.bias - self.learning_rate * db
 
             if epoch % 100 == 0:
-                print(f"Epoch: {epoch + 1}: train Loss: {t_loss} validation Loss: {v_loss}")
+                print(f"Epoch: {epoch + 1}: train Loss: {t_loss}, Validation Loss: {v_loss}")
 
         print("Train end")
 
@@ -65,11 +63,3 @@ class LogisticRegression_():
         y_pred = np.where(y_pred > 0.5, 1, 0)
         accuracy = np.sum(y_pred == Y) / len(Y)
         print(f"Accuracy: {accuracy}")
-
-
-
-
-
-
-
-
