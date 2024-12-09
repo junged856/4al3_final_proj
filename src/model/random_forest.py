@@ -3,12 +3,13 @@ from sklearn.utils import shuffle, resample
 from sklearn.model_selection import train_test_split
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.tree import DecisionTreeClassifier
+from sklearn import tree
 
 class random_forest():
-    def __init__(self, forest_size):
+    def __init__(self, forest_size, max_tree_depth):
         self.forest_size = forest_size
         self.forest = None
+        self.max_tree_depth = max_tree_depth
         
     # create forest
     def fit(self, X, Y):
@@ -20,8 +21,8 @@ class random_forest():
         for t_i in range(self.forest_size):
             # bootstrap sample
             X_sample, Y_sample = self.sampling_strat(X, Y, sample_size)
-                
-            clf = DecisionTreeClassifier()
+            
+            clf = tree.DecisionTreeClassifier(max_depth=self.max_tree_depth)
             clf.fit(X_sample, Y_sample)
             self.forest[t_i] = clf
         return
