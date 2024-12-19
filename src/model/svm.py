@@ -2,6 +2,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 import numpy as np
+import matplotlib.pyplot as plt
 
 class svm_():
     def __init__(self,learning_rate,epoch,C_value,X,Y, batch_size=32):
@@ -18,22 +19,8 @@ class svm_():
         self.threshold = 1e-4
      
         self.weights = np.zeros(X.shape[1])
-
-    def compute_loss(self,X,Y):
-        # hinge loss
-        loss=0
-
-        for i in range(len(X)):
-            loss += max(0, 1 - Y[i] * np.dot(self.weights,X[i]))
-
-        regularization_term = 0.5 * np.linalg.norm(self.weights) ** 2
-        total_loss = (self.C * loss) + regularization_term 
-        return total_loss.item()
     
     def _compute_loss(self, X, y):
-        """
-        Compute the hinge loss + regularization term.
-        """
         hinge_loss = np.maximum(0, 1 - y * (np.dot(X, self.weights) + self.bias))
         return 0.5 * np.dot(self.weights, self.weights) + self.C * np.sum(hinge_loss)
     
@@ -89,13 +76,28 @@ class svm_():
             if epoch % (self.epochs // 10) == 0 or epoch == self.epochs - 1:
                 print(f"Epoch {epoch}: Train Loss = {train_loss:.4f}, Val Loss = {val_loss:.4f}")
 
+        self.plot_losses(train_losses, val_losses)
         return train_losses, val_losses
 
     def evaluate(self, X, Y):
         X_transformed = self.rff.transform(X)
         y_pred = np.sign(np.dot(X_transformed, self.weights) + self.bias)
         accuracy= accuracy_score(Y, y_pred)
+
         print("Accuracy on test dataset: {}".format(accuracy))
+        return y_pred
+    
+    def plot_losses(self, train_losses, val_losses):
+        plt.plot(range(1, self.epochs + 1), train_losses, label="Train Losses") 
+        plt.plot(range(1, self.epochs + 1), val_losses, label="Validation Losses") 
+
+        plot_title = "Train loss vs. Validation loss for SVM"
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.title(plot_title)
+        plt.legend()
+
+        plt.show()
 
 class RandomFourierFeatures:
     def __init__(self, gamma=1.0, D=100):

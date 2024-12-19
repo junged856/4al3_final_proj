@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
 class LogisticRegression_():
     def __init__(self, c, learning_rate, epoch, X, Y):
@@ -21,7 +23,7 @@ class LogisticRegression_():
         return cross_entropy + l2_reg
 
 
-    def train(self,X_train,y_train):
+    def train(self):
         m = len(self.input)
 
         self.weights = np.zeros(self.input.shape[1])
@@ -29,25 +31,27 @@ class LogisticRegression_():
         self.train_loss = []
         self.validation_loss = []
 
+        X_train, X_val, y_train, y_val = train_test_split(self.input, self.target, test_size=0.2, random_state=42)
+
         # Gradient Descent
         for epoch in range(self.epochs):
-            z = np.dot(self.input, self.weights) + self.bias
+            z = np.dot(X_train, self.weights) + self.bias
             h = self.sigmoid(z)
 
             # compute train loss
-            t_loss = self.compute_loss(self.input, self.target, self.weights, h)
+            t_loss = self.compute_loss(X_train, y_train, self.weights, h)
             self.train_loss.append(t_loss)
 
             #compute validation loss
-            v_loss = self.compute_loss(X_train, y_train, self.weights, self.sigmoid(np.dot(X_train, self.weights) + self.bias))
+            v_loss = self.compute_loss(X_val, y_val, self.weights, self.sigmoid(np.dot(X_val, self.weights) + self.bias))
             self.validation_loss.append(v_loss)
 
             #compute validation loss
-            z_val = np.dot(self.input, self.weights) + self.bias
+            z_val = np.dot(X_train, self.weights) + self.bias
 
             # Compute gradients
-            dw = (1 / m) * np.dot(self.input.T, (h - self.target)) + (self.C / m) * self.weights
-            db = (1 / m) * np.sum(h - self.target)
+            dw = (1 / m) * np.dot(X_train.T, (h - y_train)) + (self.C / m) * self.weights
+            db = (1 / m) * np.sum(h - y_train)
 
             # Update parameters
             self.weights = self.weights - self.learning_rate * dw
@@ -57,9 +61,24 @@ class LogisticRegression_():
                 print(f"Epoch: {epoch + 1}: train Loss: {t_loss}, Validation Loss: {v_loss}")
 
         print("Train end")
+        self.plot_losses()
 
     def evaluate(self, X, Y):
         y_pred = self.sigmoid(np.dot(X, self.weights) + self.bias)
         y_pred = np.where(y_pred > 0.5, 1, 0)
         accuracy = np.sum(y_pred == Y) / len(Y)
         print(f"Accuracy: {accuracy}")
+
+        return y_pred
+
+    def plot_losses(self):
+        plt.plot(range(1, self.epochs + 1), self.train_loss, label="Train Losses") 
+        plt.plot(range(1, self.epochs + 1), self.validation_loss, label="Validation Losses") 
+
+        plot_title = "Train loss vs. Validation loss for SVM"
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.title(plot_title)
+        plt.legend()
+
+        plt.show()
