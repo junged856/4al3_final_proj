@@ -9,6 +9,12 @@ class LogisticRegression_():
         self.learning_rate = learning_rate
         self.epochs = epoch
         self.C = c
+    
+    def set_input(self, new_input):
+        self.input = new_input
+
+    def set_target(self, new_target):
+        self.target = new_target
 
     def sigmoid(self, z):
         return 1 / (1 + np.exp(-z))
