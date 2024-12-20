@@ -81,7 +81,7 @@ class LogisticRegression_():
         plt.plot(range(1, self.epochs + 1), self.train_loss, label="Train Losses") 
         plt.plot(range(1, self.epochs + 1), self.validation_loss, label="Validation Losses") 
 
-        plot_title = "Train loss vs. Validation loss for SVM"
+        plot_title = "Train loss vs. Validation loss for LogisticRegression"
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
         plt.title(plot_title)
