@@ -1,9 +1,10 @@
 from sklearn.metrics import accuracy_score, log_loss
 from sklearn.utils import shuffle, resample
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn import tree
+        
 
 class random_forest():
     def __init__(self, forest_size, max_tree_depth):
@@ -34,7 +35,8 @@ class random_forest():
 
     def predict(self, X):
         y_pred = np.array([])
-        class_probabilities = []
+        
+        class_probabilities = self.predict_proba(X)
         
         for i in range(len(X)):
             pos_predictions = 0
@@ -56,9 +58,8 @@ class random_forest():
             else:
                 forest_pred = -1
             y_pred = np.append(arr=y_pred, values=forest_pred)
-            class_probabilities.append([pos_predictions / 100, neg_predictions / 100])
             
-            if i % 1000 == 0:
+            if i % 3000 == 0:
                 print("aggregated predictions for ", i, " samples.")
         
         # turn to col vector
@@ -66,14 +67,69 @@ class random_forest():
         
         return y_pred, class_probabilities
     
-    def evaluate(self, Y, Y_pred, y_pred_prob):
-        accuracy = accuracy_score(Y, Y_pred)
+    def evaluate(self, X, y):
         
         class_map = {
-            1: 0,
-            -1: 1
+            1: 1,
+            -1: 0
         }
-        y_true = [class_map[x] for x in Y]
-        entropy_loss = log_loss(y_true, y_pred_prob)
+        y_true = [class_map[x] for x in y.values]
+        X_npy = X.values
+
+        print("Performing KFold Cross Validation on Random Forest Classifier...")
+
+        K = 5
+
+        # Initialize KFold object
+        kf = KFold(n_splits=K, shuffle=True, random_state=42)
+
+        # Store cross-validation scores
+        cv_scores = []
+        entropy_losses = []
+
+        # Iterate through the K folds
+        for train_index, val_index in kf.split(X_npy):
+            X_train, X_val = X_npy[train_index], X_npy[val_index]
+            y_train, y_val = y_true[train_index], y_true[val_index]
+                        
+            # Train the model
+            self.fit(X_train, y_train)
+            
+            # Predict on the validation set
+            y_pred, y_pred_probabilities = self.predict(X_val)
+            
+            accuracy_score = accuracy_score(y_val, y_pred)
+            entropy_loss = entropy_loss = log_loss(y_true, y_pred_probabilities)
+            
+            # Append the score to the list
+            cv_scores.append(accuracy_score)
+            entropy_losses.append(entropy_loss)
+
+        # Compute the average score across all folds
+        average_score = np.mean(cv_scores)
+        average_loss = np.mean(entropy_losses)
+
+        print(f'Average accuracy score across {K} folds: {average_score:.4f}')
+
+        print(f"Average entropy loss across {K} folds: {average_loss}")
+
+        return 
         
-        return accuracy, entropy_loss
+    def predict_proba(self, X):
+        # Get probabilities from all trees
+        tree_probs = [tree.predict_proba(X) for tree in self.forest]
+
+        # Average probabilities of likelihood to belong to class 0 (income below 50k)
+        avg_probs = []
+        for i in range(len(X)):
+            sum = 0
+            for probs in tree_probs:
+                sum += probs[i][0] 
+            # Normalize
+            avg_probs.append([sum / len(self.forest), 1 - sum / len(self.forest)])
+
+        return avg_probs
+    
+    
+    
+    

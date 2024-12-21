@@ -130,8 +130,9 @@ measure_race_bias(y_pred_mitigated, y_test, X_test)
 #######################################################
 ############### Evaluating Random forest ##############
 #######################################################
-y_pred, y_pred_probabilities = rf.predict(X_test.values)
-accuracy_score, entropy_loss = rf.evaluate(y_test_preprocessed, y_pred, y_pred_probabilities)
 
-print(f"Accuracy: {accuracy_score}")
-print(f"Cross Entropy Loss: {entropy_loss}")
+# Load the data, train-test splits are done in the rf.evaluate method
+X = pd.read_pickle("X.pkl")
+y = pd.read_pickle("y.pkl")
+
+rf.evaluate(X, y) # performs k-fold cross validation + prints out the results to console
